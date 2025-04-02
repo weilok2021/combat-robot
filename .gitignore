@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+
+# Node.js
+node_modules/
+.env
+
+# LM Studio
+*.gguf
+
+# System
+.DS_Store

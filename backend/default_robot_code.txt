@@ -1,0 +1,496 @@
+Below is the default combat robot source code:
+
+//Ultimate AI 1.0
+//By Hobo_Drew
+
+//Credit to Min for feedback, bugtesting, and work on the backing up code
+//Credit to Team Lightning for feedback and weapon off code
+//Credit to C4BB4G3 for improved immobility code
+//Credit to CodeSilver for bugtesting
+
+//READ ME
+//This AI works with most conventional designs. Spinners, rammers, and flippers will all be compatible, and most lifters and grapplers should work as long as their weapons are keybinded to work as flippers. It will also work with clusterbots.
+//The AI will only recognize button1 and button2, so any unconventional keybinds will not work with it. Set the main weapon to button1, and any srimechs to button2.
+//There are different sections of the AI under the USER INPUTS area that you can fiddle with to improve how the robot will function. Each variable you can adjust is labeled.
+//Keep in mind if the robot is a flipper or a lifter or a cluster you'll need to turn those on. Adjusting the User Inputs is critical to making the AI work.
+
+
+
+//=======USER INPUTS========
+//Inputs that the user can adjust and fine-tune for a better working robot.
+//Different sections are labeled.
+
+
+//=======BASIC INPUTS========
+//stratClose, stratMid, and stratFar are all what the robot will do at the respective distances. "aggro" makes the robot constantly
+//attack, "ram" will make the robot constantly attack but stop after it hits the opponent, "flank" makes the robot try to angle in
+//on the opponent, "cautious" makes the robot turn and face the enemy before slowly approaching it, and "sit" makes the robot sit still while facing the enemy. 
+//isInvertible is pretty self-explanitory, if checked yes the robot will know to drive upside down, if no then it will try to use a srimech or weapon to self right.
+//robotSpeed changes the robot's speed (maximum 1), and adaptiveAIOn will make the robot change strategies midfight depending on how the match is going for it. Turning this off will lock the strategies you put in.
+//Finally, prventOverHeating will make the robot turn off the weapon if the enemy is in our radius too long to prevent it from burning out. Only use this with non-horizontals that overheat quickly and have centre brake off.
+
+stratClose = "aggro"
+
+stratMid = "aggro"
+
+stratFar = "aggro"
+
+isInvertible = "yes"
+
+srimechDelay = 0.5
+
+robotSpeed = 1
+
+adaptiveAIOn = "yes"
+
+preventOverheating = "no"
+
+
+//======FLIPPER INPUTS=======
+//These values are for if you have a flipper/hammer. "flipperFOV" is the width of the zone that detects when the enemy is in it, and "flipperRange" is the length of that zone.
+//"flipperRecharge" is the amount of time in before the flipper retracts, and "flipperPause" is the amount of time in between flips.
+
+isFlipper = "yes"
+
+flipperFOV = 0.35   
+
+flipperRecharge = 0.3
+
+flipperRange = 0.85
+
+flipperPause = 1
+
+
+//======LIFTER INPUTS=======
+//These values are for if you have a lifter/grappler/saw. "lifterFOV" is the width of the zone that detects when the enemy is in it, and "lifterRange" is the length of that zone.
+//"lifterRecharge" is the amount of time in before the weapon retracts, and "lifterPause" is the amount of time in between lifts.
+
+isLifter = "no"
+
+lifterFOV = 0.35   
+
+lifterRecharge = 0.75
+
+lifterRange = 0.75
+
+lifterPause = 0.5
+
+
+//======TEAMING INPUTS=======
+//These variables are for if you want a tag team or clusterbot. "TeamWith" tells the robot which slot not to attack. For example, if "nobody" was replaced with "P3", then the robot will not attack P3.
+//Keep in mind that the robot that you're teamed with also needs this turned on telling it not to attack you.
+
+teamWith = "Nobody"
+
+
+//=====ADVANCED INPUTS=======
+//These don't need to be edited unless you want to be really specific with the AI. 
+//"wedgeThreshold" is the height that the robot must be at to be considered outwedged by the opponent. 
+//"backupRange" is the distance that the robot has to be from the opponent to start the circling timer. Once the timer is high enough the robot will back up to stop wedgelocking and circling for the whole match.
+//"hitThreshold" is the height that the robot considers a hit. If the robot goes above this height with adaptive AI on, it will detect it and adjust the strategy.
+//"WDmedium" disables weapon when the enemy is at medium range, for spinners
+//"WDlong" disables weapon when the enemy is at long range, for spinners
+
+wedgeThreshold = 0.05
+
+hitThreshold = 0.35
+
+backupRange = 1.4
+
+WDmedium = "no"
+
+WDlong = "no"
+
+//===========================
+
+
+
+// THE ACTUAL CODE IS BENEATH THIS
+
+// isVector is a fuction that tests if the given map has x, y, and z components.
+// It takes 1 arguments:
+// v = some variable
+// example usage: if isVector(myVariable) == true then
+isVector = function(v); vx = v.hasIndex("x"); vy = v.hasIndex("y"); vz = v.hasIndex("z"); if vx*vy*vz == 1 then; return true; else; return false; end if;end function
+
+// getDistance is a function that computes the distance betwen two points in meters.
+// It takes 2 arguments:
+// v1 = position #1 (a map of x, y, z values)
+// v2 = position #2 (a map of x, y, z values)
+// example usage: distance = getDistance(p1,p2)
+getDistance = function(v1,v2); return sqrt((v2.x-v1.x)*(v2.x-v1.x) + (v2.y-v1.y)*(v2.y-v1.y) + (v2.z-v1.z)*(v2.z-v1.z)); end function
+
+// getMyRobot is a function that returns a map of our robot.  Sometimes our robot is not robots[0].
+// It takes no arguments.
+// example usage: myRobot = getMyRobot()
+getMyRobot = function(); for robot in robots; if robot.tag == myTag then; return robot; end if; end for; end function
+
+// getNearestEnemy is a function that returns a map of the closest robot to us that is not us.
+// It takes no arguments.
+// example usage: enemy = getNearestEnemy()
+getNearestEnemy = function(); pos = getMyRobot().position;nearestEnemyDistance = 1000000;nearestEnemy = {};for robot in robots;if robot.tag != myTag then;if robot.team != teamWith then;if robot.isDisabled != 1 then;testDistance = getDistance(pos,robot.position);if testDistance < nearestEnemyDistance then;nearestEnemyDistance = testDistance;nearestEnemy = robot;end if;end if;end if;end if;end for;return nearestEnemy;end function
+
+invert = 1
+
+matchStart = 0
+
+matchStart2 = 0
+
+dontAttack = 0
+
+dontAttack2 = 0
+
+fun = 0
+
+currentStratC = stratClose
+
+currentStratM = stratMid
+
+currentStratF = stratFar
+
+weaponActive = true
+
+while 1
+	
+	// Get a reference to self, nearest enemy, and strategies.
+	e = getNearestEnemy()
+	me = getMyRobot()
+	distance = getDistance(me.position,e.position)
+	
+	// Drive forward at the beginning of the match to get rid of that countdown bug. 
+	// Get a reference of both mine and the opponent's starting heights.
+	if matchStart == 0 then
+		button1 = false
+		drive = 0.5
+		dontAttack = 1
+		wait(0.5)
+		matchStart = 1
+		enemyHeight = e.position.y + 0.01
+		robotHeight = me.position.y + 0.01
+	else
+		if distance < 4 and matchStart2 == 0 then
+			matchStart2 = 1
+			dontAttack = 0
+		end if
+	end if
+	
+	// Code to back up if we're in the opponent's range for too long. Ignore if the opponent is upside down or we're under them.
+	if (distance < backupRange) and (e.upValue > 0) and (e.position.y < (enemyHeight + wedgeThreshold)) then 
+		circleTime = circleTime + 1
+		if (circleTime > 150) then 
+			backUp = 1
+		end if
+	else if (distance < 0.75) and (e.position.y > (enemyHeight + wedgeThreshold)) and (preventOverheating == "yes") then
+		circleTime2 = circleTime2 + 1
+		if (circleTime2 > 10) then 
+			dontAttack2 = 1
+			button1 = false	
+		end if		
+	else
+		circleTime = 0
+		circleTime2 = 0
+		dontAttack2 = 0
+		backUp = 0
+	end if
+	
+	// The adaptive AI section that detects how many hits we take/give and adjusts the level of aggressiveness accordingly. 
+	// Holy moly it is long. 
+	if adaptiveAIOn == "yes" then
+		if stratClose == "aggro" then
+			sum1 = 2
+		else if stratClose == "ram" then
+			sum1 = 1
+		else if stratClose == "flank" then
+			sum1 = 0
+		else if stratClose == "cautious" then
+			sum1 = -1
+		else if stratClose == "sit" then
+			sum1 = -2
+		end if
+		
+		if stratMid == "aggro" then
+			sum2 = 2
+		else if stratMid == "ram" then
+			sum2 = 1
+		else if stratMid == "flank" then
+			sum2 = 0
+		else if stratMid == "cautious" then
+			sum2 = -1
+		else if stratMid == "sit" then
+			sum2 = -2
+		end if	
+		
+		if stratFar == "aggro" then
+			sum3 = 2
+		else if stratFar == "ram" then
+			sum3 = 1
+		else if stratFar == "flank" then
+			sum3 = 0
+		else if stratFar == "cautious" then
+			sum3 = -1
+		else if stratFar == "sit" then
+			sum3 = -2
+		end if	
+		
+		startFun = sum1 + sum2 + sum3
+		
+		if round(startFun + fun) <= -5 then
+			currentStratC = "cautious"
+			currentStratM = "sit"
+			currentStratF = "sit"
+		else if round(startFun + fun) == -4 then
+			currentStratC = "cautious"
+			currentStratM = "cautious"
+			currentStratF = "sit"
+		else if round(startFun + fun) == -3 then
+			currentStratC = "cautious"
+			currentStratM = "cautious"
+			currentStratF = "cautious"
+		else if round(startFun + fun) == -2 then
+			currentStratC = "flank"
+			currentStratM = "cautious"
+			currentStratF = "cautious"
+		else if round(startFun + fun) == -1 then
+			currentStratC = "flank"
+			currentStratM = "flank"
+			currentStratF = "cautious"
+		else if round(startFun + fun) == 0 then
+			currentStratC = "flank"
+			currentStratM = "flank"
+			currentStratF = "flank"
+		else if round(startFun + fun) == 1 then
+			currentStratC = "flank"
+			currentStratM = "flank"
+			currentStratF = "ram"
+		else if round(startFun + fun) == 2 then
+			currentStratC = "flank"
+			currentStratM = "ram"
+			currentStratF = "ram"
+		else if round(startFun + fun) == 3 then
+			currentStratC = "ram"
+			currentStratM = "ram"
+			currentStratF = "ram"
+		else if round(startFun + fun) == 4 then
+			currentStratC = "ram"
+			currentStratM = "ram"
+			currentStratF = "aggro"
+		else if round(startFun + fun) == 5 then
+			currentStratC = "ram"
+			currentStratM = "aggro"
+			currentStratF = "aggro"
+		else if round(startFun + fun) >= 6 then
+			currentStratC = "aggro"
+			currentStratM = "aggro"
+			currentStratF = "aggro"	
+		end if		
+		
+		if (me.position.y > robotHeight + hitThreshold) then
+			fun = fun - 0.25
+			wait(0.25)
+		else if (e.position.y > enemyHeight + hitThreshold) then
+			fun = fun + 0.25
+			wait(0.25)
+		end if
+	end if
+	
+	// Weapon code. If the robot is set to a flipper use flipper code, if lifter use lifter code, and if neither just keep the weapon on all match.
+	if isFlipper == "yes" and dontAttack == 0 then
+		if(distance < flipperRange) and (abs(turnToward(e.position)) <= flipperFOV) then
+			wait(0.01)
+			drive = 0.2
+			turn = 0
+			button1 = true
+			wait(flipperRecharge)
+			drive = 0.2
+			turn = turnToward(e.position) / 4
+			button1 = false
+			wait(flipperPause)
+		else
+			button1 = false
+		end if
+	else if isLifter == "yes" and dontAttack == 0 then
+		if(distance < lifterRange) and (abs(turnToward(e.position)) <= lifterFOV) then
+			wait(0.01)
+			button1 = true
+			wait(lifterRecharge)
+			button1 = false
+			wait(lifterPause)
+		else
+			button1 = false
+		end if
+	else if dontAttack2 == 1 or isLifter == "yes" or isFlipper == "yes" then
+		button1 = false
+	else if dontAttack == 1 and (isLifter == "yes" or isFlipper == "yes") then
+		button1 = false
+	else if isFlipper == "no" and isLifter == "no" and dontAttack2 == 0 then
+		button1 = weaponActive
+	end if
+	
+	// Strategy for when the robots are close.
+	if (distance < 2) and (backUp == 0) and (dontAttack == 0) then
+		if currentStratC == "aggro" then
+			drive = driveToward(e.position) * invert * robotSpeed 
+			turn = turnToward(e.position)             	
+		else if currentStratC == "cautious" then
+			turn = turnToward(e.position) / 2
+			drive = driveToward(e.position) * invert * robotSpeed / 4
+		else if currentStratC == "sit" then
+			turn = turnToward(e.position)
+			drive = 0 
+		else if currentStratC == "ram" then
+			if (e.position.y > enemyHeight + hitThreshold) then
+				turn = turnToward(e.position)
+				drive = 0
+			else
+				drive = driveToward(e.position) * invert * robotSpeed 
+				turn = turnToward(e.position)
+			end if
+		else if currentStratC == "flank" then
+			turn = turnToward(e.position) * 2
+			drive = driveToward(e.position) * invert * robotSpeed  
+			turn = turnToward(e.position)
+			drive = driveToward(e.position) * invert * robotSpeed  
+		end if
+		weaponActive = true
+	else if (backUp == 1) then
+		turn = turnToward(e.position)
+		drive = -1 * invert
+		aistate = "back up fool"
+		wait(0.5)
+		backUp = 0
+		dontAttack2 = 0
+	end if    
+	
+	// Strategy for when the robots are a medium distance away.
+	if (distance < 5) and (distance > 2) and (dontAttack == 0) then
+		if currentStratM == "aggro" then
+			drive = driveToward(e.position) * invert * robotSpeed 
+			turn = turnToward(e.position)             		
+		else if currentStratM == "cautious" then
+			turn = turnToward(e.position) / 2
+			drive = driveToward(e.position) * invert * robotSpeed / 4
+		else if currentStratM == "sit" then
+			turn = turnToward(e.position)
+			drive = 0 
+		else if currentStratM == "ram" then
+			if (e.position.y > enemyHeight + hitThreshold) then
+				turn = turnToward(e.position)
+				drive = 0
+			else
+				drive = driveToward(e.position) * invert * robotSpeed 
+				turn = turnToward(e.position)
+			end if
+		else if currentStratM == "flank" then
+			turn = turnToward(e.position) * 2
+			drive = driveToward(e.position)  * invert * robotSpeed 
+			turn = turnToward(e.position)
+			drive = driveToward(e.position) * invert * robotSpeed  	
+		end if
+		if WDmedium == "yes" then
+			weaponActive = false
+		else
+			weaponActive = true
+		end if
+	end if
+	
+	// Strategy for when the robots are far apart.
+	if (distance > 5) and (dontAttack == 0) then
+		if currentStratF == "aggro" then
+			drive = driveToward(e.position) * invert * robotSpeed 
+			turn = turnToward(e.position)      		
+		else if currentStratF == "cautious" then
+			turn = turnToward(e.position) / 2
+			drive = driveToward(e.position) * invert * robotSpeed / 4
+		else if currentStratF == "sit" then
+			turn = turnToward(e.position)
+			drive = 0 
+		else if currentStratF == "ram" then
+			if (e.position.y > enemyHeight + hitThreshold) then
+				turn = turnToward(e.position)
+				drive = 0
+			else
+				drive = driveToward(e.position) * invert * robotSpeed 
+				turn = turnToward(e.position)
+			end if
+		else if currentStratF == "flank" then
+			turn = turnToward(e.position) * 2
+			drive = driveToward(e.position) * invert * robotSpeed  
+			turn = turnToward(e.position)
+			drive = driveToward(e.position) * invert * robotSpeed 			
+		end if
+		if WDlong == "yes" then
+			weaponActive = false
+		else
+			weaponActive = true
+		end if
+	end if
+	
+	// If inverted, and isInvertible is on, drive inverted. If it
+	// is off, turn button2 and button1 on and off. Depending on the wiring of 
+	// the self righting mechanism, this might need to be assigned to a different button.
+	if (me.upValue < 0) and (me.position.y < robotHeight + hitThreshold + 0.1) then
+		if isInvertible == "no" and isLifter == "no" then
+			button1 = false
+			button2 = true
+			wait(srimechDelay)
+			button1 = true
+			button2 = false
+			wait(srimechDelay)
+			aistate = "self-righting"
+		else if isInvertible == "no" and isLifter == "yes" then
+			button1 = true
+			button2 = false
+			drive = -1
+			wait(srimechDelay)
+			button1 = false
+			button2 = true
+			drive = -1
+			wait(srimechDelay)
+			aistate = "self-righting"
+		else
+			invert = -1
+		end if
+	else
+		invert = 1
+	end if
+	
+	// Immobility code. If the enemy is immobile and I'm not, face them and back up slowly.
+	if matchStart2 == 1 then
+		if (e.isImmobile == true) and (me.isImmobile == false) then
+			dontAttack = 1
+			if distance < 3 then
+				turn = turnToward(e.position)
+				drive = -0.1 * invert
+				aistate = "backing up"
+			end if
+		else if (e.isImmobile == true) and (me.isImmobile == true) then
+			dontAttack = 1
+			turn = turnToward(e.position)
+			button1 = false
+			button2 = true
+			drive = invert * -1
+			wait(1)
+			button1 = true
+			button2 = false
+			drive = invert
+			wait(1)
+			aistate = "trying to get unstuck"
+		else if (me.isImmobile == true)and (e.isImmobile == false) then
+			dontAttack = 1
+			turn = turnToward(e.position)
+			button1 = false
+			button2 = true
+			drive = invert * -1
+			wait(1)
+			button1 = true
+			button2 = false
+			drive = invert
+			wait(1)
+			aistate = "trying to get unstuck"
+		else 
+			dontAttack = 0
+		end if		
+	end if	
+	
+	yield
+end while
