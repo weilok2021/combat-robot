@@ -3,338 +3,527 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Combat Robot Controller</title>
+    <title>Combat Robot Codex</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
-            --text-color: white;
-            --grid-border: #444;
-            --grid-hover: #555;
-            --button-bg: #333;
-            --button-text: white;
-            --dead-zone: rgba(255, 0, 0, 0.3);
-            --dead-zone-border: red;
+            --text-color: #e0e0e0;
+            --user-bubble: #2b5278;
+            --assistant-bubble: #444654;
+            --border-color: #444;
+            --input-bg: #40414f;
+            --button-bg: #0b8fd3;
+            --error-color: #ff6b6b;
         }
 
         body.light-mode {
             --bg-color: #f5f5f5;
-            --text-color: black;
-            --grid-border: #bbb;
-            --grid-hover: #ddd;
-            --button-bg: #fff;
-            --button-text: black;
-            --dead-zone: rgba(255, 0, 0, 0.2);
-            --dead-zone-border: darkred;
+            --text-color: #333;
+            --user-bubble: #e3f2fd;
+            --assistant-bubble: #f0f0f0;
+            --border-color: #ddd;
+            --input-bg: #fff;
+            --button-bg: #2196F3;
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            display: flex;
-            height: 100vh;
             margin: 0;
-            align-items: center;
-            justify-content: space-between;
-            padding: 20px;
-            box-sizing: border-box;
-            gap: 20px;
-        }
-
-        /* Left Side: Instruction History */
-        .history-panel {
-            width: 250px;
-            height: 80vh;
-            background-color: var(--grid-hover);
-            padding: 15px;
-            overflow-y: auto;
-            border-radius: 5px;
-        }
-
-        /* Center: Grid Map */
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(120, 1fr);
-            grid-template-rows: repeat(120, 1fr);
-            width: 600px;
-            height: 600px;
-            border: 2px solid var(--grid-border);
-            position: relative;
-        }
-
-        .grid-item {
-            border: 0.5px solid var(--grid-border);
-            background-color: var(--bg-color);
-            transition: background-color 0.2s;
-        }
-
-        .grid-item:hover {
-            background-color: var(--grid-hover);
-        }
-
-        .dead-zone {
-            position: absolute;
-            width: 16.66%;
-            height: 16.66%;
-            background-color: var(--dead-zone);
-            border: 2px solid var(--dead-zone-border);
-            top: 41.66%;
-            left: 41.66%;
-        }
-
-        /* Right Side: Control Buttons */
-        .control-panel {
-            width: 250px;
+            padding: 0;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            height: 100vh;
         }
 
-        button {
-            padding: 12px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            color: white;
-            transition: 0.2s;
-        }
-
-        #toggle-theme { background-color: #2196F3; } /* Blue */
-        #avoid-btn { background-color: #4CAF50; } /* Green */
-        #attack-btn { background-color: #f44336; } /* Red */
-        #patrol-btn { background-color: #FFEB3B; color: black; } /* Yellow */
-        #stop-btn { background-color: #ffffff; color: black; } /* White */
-        #voice-btn { background-color: #673AB7; } /* Purple */
-        #send-btn { background-color: #0b8fd3; } /* Light Blue */
-
-        /* Bottom: Chatbox */
-        .chat-box {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 500px;
-            background-color: var(--grid-hover);
+        .header {
             padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Left sidebar - Chat History */
+        .history-sidebar {
+            width: 200px;
+            background-color: var(--assistant-bubble);
+            padding: 15px;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+        }
+
+        /* Main chat area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 400px;
+        }
+
+        /* Right sidebar - Action Panel */
+        .action-sidebar {
+            width: 250px;
+            background-color: var(--assistant-bubble);
+            padding: 15px;
+            overflow-y: auto;
+            border-left: 1px solid var(--border-color);
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            line-height: 1.5;
+        }
+
+        .user-message {
+            background-color: var(--user-bubble);
+            margin-left: auto;
+        }
+
+        .assistant-message {
+            background-color: var(--assistant-bubble);
+            margin-right: auto;
+        }
+
+        .message pre {
+            background-color: rgba(0,0,0,0.2);
+            padding: 10px;
             border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .input-area {
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
             display: flex;
             gap: 10px;
-            align-items: center;
         }
 
         #chat-input {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-color);
+            resize: none;
+            min-height: 50px;
+            max-height: 150px;
+            font-size: 16px;
+        }
+
+        #send-btn {
+            padding: 0 20px;
             background-color: var(--button-bg);
+            color: white;
             border: none;
-            color: var(--button-text);
-            resize: none; /* Prevent manual resizing */
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .error-message {
+            color: var(--error-color);
+            padding: 10px;
+            text-align: center;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 10px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-color);
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingAnimation {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* Action panel specific styles */
+        .action-panel {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+            flex: 1;
             overflow-y: auto;
-            height: 50px;
+        }
+
+        .action-btn {
+            padding: 10px 12px;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
             font-size: 14px;
+            transition: transform 0.1s;
+        }
+
+        .action-btn:hover {
+            transform: translateX(2px);
+        }
+
+        .action-btn.defense {
+            background-color: #4CAF50;
+        }
+
+        .action-btn.attack {
+            background-color: #f44336;
+        }
+
+        .action-btn.avoid {
+            background-color: #FF9800;
+        }
+
+        .action-btn.patrol {
+            background-color: #9C27B0;
+        }
+
+        .custom-actions {
+            margin-top: 20px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+        }
+
+        .custom-action-input {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        #new-action-name {
+            flex: 1;
+            padding: 8px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-color);
+        }
+
+        .add-action-btn {
+            padding: 8px 12px;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .delete-action-btn {
+            padding: 4px 8px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 5px;
+            font-size: 12px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--assistant-bubble);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #666;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1000px) {
+            .history-sidebar, .action-sidebar {
+                width: 180px;
+            }
+        }
+
+        @media (max-width: 800px) {
+            .history-sidebar, .action-sidebar {
+                width: 150px;
+            }
+            .chat-area {
+                min-width: 300px;
+            }
         }
     </style>
 </head>
-
 <body>
-    <!-- Left Side: Instruction History -->
-    <div class="history-panel">
-        <h4>Instruction History</h4>
-        <div id="prompt-history"></div>
+    <div class="header">
+        <h2>Combat Robot Codex</h2>
+        <button id="toggle-theme">Toggle Theme</button>
     </div>
 
-    <!-- Middle: Robot Map -->
-    <div class="grid-container" id="map">
-        <div class="dead-zone"></div>
-    </div>
+    <div class="chat-container">
+        <!-- Left Sidebar - Chat History -->
+        <div class="history-sidebar">
+            <h3>Chat History</h3>
+            <div id="chat-history"></div>
+        </div>
 
-    <!-- Right Side: Controls -->
-    <div class="control-panel">
-        <button id="toggle-theme">🌙 Toggle Theme</button>
-        <button id="avoid-btn">Avoid</button>
-        <button id="attack-btn">Attack</button>
-        <button id="patrol-btn">Patrol</button>
-        <button id="stop-btn">Stop</button>
-    </div>
+        <!-- Center Area - Main Chat -->
+        <div class="chat-area">
+            <div class="messages" id="messages">
+                <!-- Messages will appear here -->
+            </div>
+            
+            <div class="input-area">
+                <textarea id="chat-input" placeholder="Type your message... (Shift+Enter for new line)"></textarea>
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
 
-    <!-- Bottom: Chatbox -->
-    <div class="chat-box">
-        <textarea id="chat-input" placeholder="Enter instruction (Shift+Enter for new line)"></textarea>
-        <button id="send-btn" onclick="sendInstruction()">Send</button>
-        <button id="voice-btn" onclick="startVoiceRecognition()">🎤</button>
-    </div>
+        <!-- Right Sidebar - Action Panel -->
+        <div class="action-sidebar">
+            <div class="action-panel">
+                <h3>Combat Actions</h3>
+                <div class="action-buttons" id="action-buttons">
+                    <!-- <button class="action-btn attack" data-command="Implement aggressive attack strategy prioritizing target acquisition and offensive maneuvers">Attack</button>
+                    <button class="action-btn defense" data-command="Enhance defensive capabilities with protective maneuvers and shield optimization">Defense</button>
+                    <button class="action-btn avoid" data-command="Develop evasion algorithms to avoid enemy detection and attacks">Avoid</button>
+                    <button class="action-btn patrol" data-command="Create efficient patrol routes with threat detection systems">Patrol</button> -->
 
-    <!-- Add this above existing script tag -->
-    <div class="code-display">
-        <pre id="code-output"></pre>
-    </div>
+                    <button class="action-btn attack" data-command="let the combat robot attack the enemy">Attack</button>
+                    <button class="action-btn defense" data-command="let the combat robot use defensive strategy throughout the game">Defense</button>
+                    <button class="action-btn avoid" data-command="let the combat robot avoid the enemy for now">Avoid</button>
+                    <button class="action-btn patrol" data-command="let the combat robot patrol over around the enemy">Patrol</button>
 
-    <style>
-        .code-display {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80%;
-            height: 200px;
-            background: var(--grid-hover);
-            padding: 10px;
-            overflow-y: auto;
-        }
-        #code-output {
-            white-space: pre-wrap;
-            font-family: monospace;
-        }
-    </style>
-    
+                </div>
+                
+                <div class="custom-actions">
+                    <h4>Custom Actions</h4>
+                    <div class="custom-action-input">
+                        <input type="text" id="new-action-name" placeholder="Action name">
+                        <button class="add-action-btn" id="add-action-btn">+</button>
+                    </div>
+                    <div id="custom-actions-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
-        // Initialize the grid
-        const map = document.getElementById('map');
-        for (let row = 0; row < 120; row++) {
-            for (let col = 0; col < 120; col++) {
-                const gridItem = document.createElement('div');
-                gridItem.className = 'grid-item';
-                gridItem.dataset.x = col;
-                gridItem.dataset.y = row;
-                gridItem.addEventListener('click', handleGridClick);
-                map.appendChild(gridItem);
-            }
-        }
+        // DOM Elements
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const messagesContainer = document.getElementById('messages');
+        const chatHistoryContainer = document.getElementById('chat-history');
+        const themeToggle = document.getElementById('toggle-theme');
 
-        let selectedCoords = null;
-
-        function handleGridClick(event) {
-            selectedCoords = { x: event.target.dataset.x, y: event.target.dataset.y };
-            alert(`Selected coordinates: (${selectedCoords.x}, ${selectedCoords.y})`);
-        }
-
-        // function sendInstruction() {
-        //     const input = document.getElementById('chat-input');
-        //     if (input.value.trim()) {
-        //         addToHistory(input.value);
-        //         input.value = '';
-        //     }
-        // }
-
-        function addToHistory(text) {
-            const history = document.getElementById('prompt-history');
-            const entry = document.createElement('div');
-            entry.innerHTML = text.replace(/\n/g, '<br>'); // Preserve line breaks
-            history.appendChild(entry);
-        }
-
-
-        function handleAction(action) {
-            if (!selectedCoords) return alert('Please select a position first!');
-            // const instruction = `${action} at (${selectedCoords.x}, ${selectedCoords.y})`;
-
-            // With:
-            const instruction = encodeURIComponent(
-                `${action} at (${selectedCoords.x}, ${selectedCoords.y})`
-            );
-            addToHistory(instruction);
-        }
-
-        // Button click handlers
-        document.getElementById('avoid-btn').addEventListener('click', () => handleAction('Avoid'));
-        document.getElementById('attack-btn').addEventListener('click', () => handleAction('Attack'));
-        document.getElementById('patrol-btn').addEventListener('click', () => handleAction('Patrol'));
-        document.getElementById('stop-btn').addEventListener('click', () => handleAction('Stop'));
-
-        // Multi-line chat input (Shift+Enter for new line)
-        document.getElementById('chat-input').addEventListener('keydown', function (event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendInstruction();
-            }
-        });
-
-        // Voice Recognition
-        function startVoiceRecognition() {
-            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = 'en-US';
-            recognition.start();
-
-            recognition.onresult = function (event) {
-                document.getElementById('chat-input').value = event.results[0][0].transcript;
-                // sendInstruction(); remove this line
-            };
-        }
-
-        // Dark Mode Toggle
-        document.getElementById('toggle-theme').addEventListener('click', () => {
+        // Theme toggle
+        themeToggle.addEventListener('click', () => {
             document.body.classList.toggle('light-mode');
             localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
         });
 
-        // Load Theme Preference
-        window.onload = function () {
-            if (localStorage.getItem('theme') === 'light') {
-                document.body.classList.add('light-mode');
+        // Load theme preference
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+        }
+
+        // Handle chat input
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
             }
-        };
+        });
 
-        // async function sendInstruction() {
-        //     const input = document.getElementById('chat-input');
-        //     if (!input.value.trim()) return;
+        sendBtn.addEventListener('click', sendMessage);
 
-        //     try {
-        //             const response = await fetch('http://localhost:3000/process', {
-        //             method: 'POST',
-        //             headers: { 'Content-Type': 'application/json' },
-        //             body: JSON.stringify({ instruction: input.value })
-        //         });
+        // Handle preset action buttons
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const command = this.getAttribute('data-command');
+                chatInput.value = command;
+                sendMessage();
+            });
+        });
+        
+        // Add custom action
+        document.getElementById('add-action-btn').addEventListener('click', function() {
+            const actionName = document.getElementById('new-action-name').value.trim();
+            if (actionName) {
+                addCustomAction(actionName);
+                document.getElementById('new-action-name').value = '';
+            }
+        });
+        
+        // Allow Enter key to add action
+        document.getElementById('new-action-name').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const actionName = this.value.trim();
+                if (actionName) {
+                    addCustomAction(actionName);
+                    this.value = '';
+                }
+            }
+        });
 
-        //         const data = await response.json();
-        //         // Display modified code (add a <pre> element to your UI)
-        //         displayModifiedCode(data.modifiedCode);
-        //         addToHistory(input.value); 
-        //         input.value = '';
-        //     } catch (err) {
-        //         alert('Error processing instruction');
-        //         }
-        // }
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
 
-        async function sendInstruction() {
-            const input = document.getElementById('chat-input');
-            const instruction = input.value.trim();
+            // Add user message to UI
+            addMessage('user', message);
+            chatInput.value = '';
             
-            if (!instruction) return;
-
+            // Show typing indicator
+            const typingIndicator = showTypingIndicator();
+            
             try {
-                // Add to history immediately
-                addToHistory(instruction);
-                input.value = ''; // Clear input
-
-                // API Communication
-                const response = await fetch('http://localhost:3000/process', {
+                const response = await fetch('http://localhost:3000/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ instruction })
+                    body: JSON.stringify({ message })
                 });
 
                 if (!response.ok) {
                     const error = await response.json();
-                    throw new Error(error.details || 'Server error');
+                    throw new Error(error.error || 'Server error');
                 }
 
                 const data = await response.json();
-                displayModifiedCode(data.modifiedCode);
+                addMessage('assistant', data.reply);
                 
-            } catch (err) {
-                alert(`Error: ${err.message}`);
-                console.error("Full error:", err);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                // Remove typing indicator
+                typingIndicator.remove();
             }
         }
 
-        function displayModifiedCode(code) {
-            // Create a code display area (add this to your HTML)
-            const codeDisplay = document.getElementById('code-output');
-            codeDisplay.textContent = code;
+        function addMessage(role, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}-message`;
+            
+            // Format code blocks if present
+            const formattedContent = content.replace(/```(\w*)\n([\s\S]+?)```/g, 
+                '<pre><code class="$1">$2</code></pre>');
+            
+            messageDiv.innerHTML = formattedContent;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Add to history sidebar
+            if (role === 'user') {
+                const historyItem = document.createElement('div');
+                historyItem.textContent = content.length > 30 
+                    ? content.substring(0, 30) + '...' 
+                    : content;
+                historyItem.style.cursor = 'pointer';
+                historyItem.style.marginBottom = '5px';
+                historyItem.style.padding = '5px';
+                historyItem.style.borderRadius = '4px';
+                historyItem.style.backgroundColor = role === 'user' 
+                    ? 'var(--user-bubble)' 
+                    : 'var(--assistant-bubble)';
+                
+                historyItem.addEventListener('click', () => {
+                    // Scroll to message when clicked in history
+                    messageDiv.scrollIntoView({ behavior: 'smooth' });
+                });
+                
+                chatHistoryContainer.appendChild(historyItem);
+            }
         }
-        
+
+        function addCustomAction(name) {
+            const customActionsList = document.getElementById('custom-actions-list');
+            const actionId = 'custom-action-' + Date.now();
+            
+            const actionDiv = document.createElement('div');
+            actionDiv.className = 'custom-action';
+            actionDiv.innerHTML = `
+                <button class="action-btn" 
+                        data-command="Implement ${name} strategy for the combat robot">
+                    ${name}
+                </button>
+                <button class="delete-action-btn" data-action-id="${actionId}">×</button>
+            `;
+            actionDiv.id = actionId;
+            
+            customActionsList.appendChild(actionDiv);
+            
+            // Set up event listeners for the new buttons
+            actionDiv.querySelector('.action-btn').addEventListener('click', function() {
+                const command = this.getAttribute('data-command');
+                chatInput.value = command;
+                sendMessage();
+            });
+            
+            actionDiv.querySelector('.delete-action-btn').addEventListener('click', function() {
+                document.getElementById(this.getAttribute('data-action-id')).remove();
+            });
+        }
+
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant-message typing-indicator';
+            typingDiv.innerHTML = `
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            `;
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return typingDiv;
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            messagesContainer.appendChild(errorDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
     </script>
 </body>
 </html>
